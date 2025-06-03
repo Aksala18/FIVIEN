@@ -1,3 +1,22 @@
+// script.js
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCYaOfYvyoRLeaSToCmrLBwKjJdLD_jFSc",
+  authDomain: "fivien18.firebaseapp.com",
+  databaseURL: "https://fivien18-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "fivien18",
+  storageBucket: "fivien18.firebasestorage.app",
+  messagingSenderId: "635216684667",
+  appId: "1:635216684667:web:bb4d5a2da30815958b64de",
+  measurementId: "G-6GP5HX3FEG"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
 const calendar = document.getElementById("calendar");
 const userSelect = document.getElementById("userSelect");
 const monthSelect = document.getElementById("monthSelect");
@@ -23,13 +42,30 @@ Object.entries(users).forEach(([name]) => {
   userSelect.appendChild(option);
 });
 
-let selections = JSON.parse(localStorage.getItem("calendarData")) || {};
+let selections = {};
+
+// Função para carregar dados do Firebase
+function loadSelections() {
+  const dbRef = ref(db);
+  get(child(dbRef, 'calendarData')).then((snapshot) => {
+    if (snapshot.exists()) {
+      selections = snapshot.val();
+    } else {
+      selections = {};
+    }
+    renderCalendar();
+  }).catch((error) => {
+    console.error("Erro ao carregar dados:", error);
+    selections = {};
+    renderCalendar();
+  });
+}
 
 function renderCalendar() {
-  const selectedMonth = parseInt(monthSelect.value); // 6 = junho, 7 = julho
+  const selectedMonth = parseInt(monthSelect.value);
   const today = new Date();
   const year = today.getFullYear();
-  const totalDays = new Date(year, selectedMonth , 0).getDate();
+  const totalDays = new Date(year, selectedMonth, 0).getDate();
 
   calendar.innerHTML = "";
 
@@ -46,7 +82,7 @@ function renderCalendar() {
         dayEl.style.backgroundColor = usersHere[0].color;
       } else {
         const sortedUsers = [...usersHere].sort(
-            (a, b) => userOrder.indexOf(a.name) - userOrder.indexOf(b.name)
+          (a, b) => userOrder.indexOf(a.name) - userOrder.indexOf(b.name)
         );
         const gradient = sortedUsers.map(u => u.color).join(", ");
 
@@ -84,10 +120,12 @@ function renderCalendar() {
 }
 
 saveButton.addEventListener("click", () => {
-  localStorage.setItem("calendarData", JSON.stringify(selections));
-  alert("Disponibilidade guardada!");
+  set(ref(db, 'calendarData'), selections)
+    .then(() => alert("Disponibilidade guardada no Firebase!"))
+    .catch((error) => alert("Erro a guardar: " + error));
 });
 
 monthSelect.addEventListener("change", renderCalendar);
 
-renderCalendar();
+// Carrega os dados do Firebase logo que a app inicia
+loadSelections();
